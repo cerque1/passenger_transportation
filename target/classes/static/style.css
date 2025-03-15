@@ -1,0 +1,149 @@
+:root{
+    --red: #e60000;
+    --black-red: #7b282d;
+    --beige: #e5ccbc;
+    --white: #fffafa;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    background-color: var(--white);
+}
+
+header{
+    text-align: center;
+    width: 100%;    
+    background-color: var(--black-red);
+    position: sticky;
+    top: 0;
+}
+
+/* добавить стиль тексту */
+.header-text{
+    width: 83%;
+    padding: 20px;
+    display: inline-block;
+    color: var(--white);
+    font-size: 25px;
+    /* font-style: ; */
+}
+
+ul{
+    list-style: none;
+}
+
+.nav{
+    width: 30%;
+    height: 100%;
+    position: fixed;
+    background-color: var(--black-red);
+    overflow: hidden;
+}
+.menu a{
+    padding: 5px 10px 0 10px;
+    font-size: 17px;
+    color: var(--white);
+}
+.menu a:hover{
+    color: var(--beige);
+}
+.menu li{
+    padding: 10px 0 0 0;
+}
+
+.nav{
+    max-height: 0;
+    transition: max-height .5s ease-out;
+}
+
+.hamb-menu{
+    cursor: pointer;
+    float: left;
+    padding: 30px 20px;
+}
+.hamb-line{
+    background-color: var(--white);
+    display: block;
+    height: 3px;
+    position: relative;
+    width: 25px;
+}
+.hamb-line::before,
+.hamb-line::after{
+    background-color: var(--white);
+    content: '';
+    display: block;
+    height: 100%;
+    position: absolute;
+    transition: all .3s ease-out;
+    width: 100%;
+}
+.hamb-line::before{
+    top: 7px;
+}
+.hamb-line::after{
+    top: -7px;
+}
+
+.side-menu{
+    display: none;
+}
+.side-menu:checked ~ .nav{
+    max-height: 100%;
+}
+.side-menu:checked ~ .hamb-menu .hamb-line{
+    background-color: transparent;
+}
+.side-menu:checked ~ .hamb-menu .hamb-line::before{
+    transform: rotate(45deg);
+    top: 0px;
+}
+.side-menu:checked ~ .hamb-menu .hamb-line::after{
+    transform: rotate(-45deg);
+    top: 0px;
+}
+
+@media (min-width: 900px){
+    .header-text{
+        padding: 20px;
+        display: inline-block;
+        color: var(--white);
+        font-size: 25px;
+    }
+    .nav{
+        max-height: none;
+        top: 0;
+        float: left;
+        position: relative;
+        background-color: var(--white);
+        width: fit-content;
+        display: block;
+    }
+
+    .header-text{
+        display: block;
+    }
+
+    .menu a{
+        font-size: 17px;
+        display: block;
+        color: var(--black-red);
+    }
+    
+    .menu a:hover{
+        color: var(--beige);
+    }
+    
+    .menu li{
+        float: left;
+    }    
+
+    .hamb-menu{
+        display: none;
+    }
+}
