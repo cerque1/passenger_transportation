@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Поиск маршрутов</title>
+    <style>
+        /* Нейтральная цветовая гамма */
+        body {
+          background-color: #f7f7f7;
+          font-family: Arial, sans-serif;
+          color: #333;
+          margin: 0;
+          padding: 0;
+        }
+        .container {
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          background-color: #fff;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+        }
+        h1, h2 {
+          text-align: center;
+        }
+        .form-group {
+          margin-bottom: 15px;
+        }
+        label {
+          display: block;
+          margin-bottom: 5px;
+          font-weight: bold;
+        }
+        input[type="text"],
+        input[type="datetime-local"],
+        select {
+          width: 100%;
+          padding: 8px;
+          border: 1px solid #bbb;
+          border-radius: 3px;
+          box-sizing: border-box;
+        }
+        input[type="checkbox"] {
+          margin-right: 5px;
+        }
+        button {
+          padding: 10px 20px;
+          background-color: #4c8bf5;
+          color: #fff;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 1em;
+        }
+        button:hover {
+          background-color: #3b7de0;
+        }
+        .schedule-item {
+          border-bottom: 1px solid #ddd;
+          padding: 10px 0;
+        }
+        .schedule-item:last-child {
+          border-bottom: none;
+        }
+        .schedule-details p {
+          margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<!-- Форма поиска -->
+<div class="container" id="search-container">
+    <h1>Поиск маршрутов</h1>
+    <div class="form-group">
+        <label for="transport-type">Тип транспорта</label>
+        <select id="transport-type">
+            <option value="TRAIN">TRAIN</option>
+            <option value="BUS">BUS</option>
+            <option value="AIR">AIR</option>
+            <option value="MIXED">MIXED</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="from">От (начальная остановка)</label>
+        <input type="text" id="from" placeholder="Введите название начальной остановки">
+    </div>
+    <div class="form-group">
+        <label for="to">До (конечная остановка)</label>
+        <input type="text" id="to" placeholder="Введите название конечной остановки">
+    </div>
+    <div class="form-group">
+        <label for="departure-time">Дата/время отправления</label>
+        <input type="datetime-local" id="departure-time">
+    </div>
+    <div class="form-group">
+        <input type="checkbox" id="is-limit">
+        <label for="is-limit" style="display: inline;">Показать только ближайшие варианты</label>
+    </div>
+    <button id="search-btn">Поиск</button>
+</div>
+
+<!-- Блок для вывода расписания -->
+<div class="container" id="results-container">
+    <h2>Расписание</h2>
+    <div id="schedules"></div>
+</div>
+
+<script>
+    // Предположим, что токен пользователя уже сохранен
+    const token = localStorage.getItem('authToken');
+
+    // Обработчик нажатия на кнопку "Поиск"
+    document.getElementById('search-btn').addEventListener('click', function() {
+        const transportType = document.getElementById('transport-type').value;
+        const fromStop = document.getElementById('from').value.trim();
+        const toStop = document.getElementById('to').value.trim();
+        const departureTime = document.getElementById('departure-time').value;
+        const isLimit = document.getElementById('is-limit').checked;
+
+        const requestBody = {
+            from: fromStop,
+            to: toStop,
+            departure_time: departureTime,
+            transport_type: transportType,
+            is_limit: isLimit
+        };
+
+        fetch("http://localhost:8080/api/v1/get_timetable", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestBody)
+        })
+        .then(response => response.json())
+        .then(data => {
+            displaySchedules(data);
+        })
+        .catch(error => {
+            console.error("Ошибка при получении расписания:", error);
+        });
+    });
+
+// Функция отображения расписания
+async function displaySchedules(schedules) {
+    const schedulesContainer = document.getElementById('schedules');
+    schedulesContainer.innerHTML = "";
+
+    if (!schedules || schedules.length === 0) {
+        schedulesContainer.innerHTML = "<p>Нет доступных маршрутов.</p>";
+        return;
+    }
+
+    for (const schedule of schedules) { // Изменено на цикл for...of, чтобы корректно использовать await
+        const item = document.createElement('div');
+        item.className = 'schedule-item';
+
+        const details = document.createElement('div');
+        details.className = 'schedule-details';
+        // Изначальная вместимость (пока не обновили с сервера)
+        let capacityText = `<p><strong>Вместимость:</strong> ${schedule.capacity}</p>`;
+        details.innerHTML = `
+            <p><strong>Время отъезда:</strong> ${schedule.departure_time}</p>
+            <p><strong>Время прибытия:</strong> ${schedule.arrival_time}</p>
+            ${capacityText}
+        `;
+        item.appendChild(details);
+
+        const requestBody = JSON.stringify({
+            token: token,
+            timetables_ids: schedule.transport_sequence
+        });
+
+        const reserveBtn = document.createElement('button');
+
+        // Здесь мы ждем результат асинхронной операции
+        const response = await fetch("http://localhost:8080/api/v1/is_reserve", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: requestBody
+        });
+
+        const data = await response.json();
+        const isReserved = JSON.parse(data);
+
+        reserveBtn.dataset.isReserved = isReserved;
+        reserveBtn.textContent = isReserved ? "Отменить бронь" : "Забронировать";
+
+        reserveBtn.addEventListener('click', async () => { // Добавлено async
+            const timetablesSequence = schedule.transport_sequence;
+            const isCurrentlyReserved = reserveBtn.dataset.isReserved === "true";
+
+            const action = isCurrentlyReserved ? "cancel" : "reserve";
+
+            await reserveRoute(timetablesSequence, action, reserveBtn); // Добавлено await
+
+            // После бронирования/отмены обновляем количество мест
+            try {
+                const requestBody = JSON.stringify({
+                    token: token,
+                    timetables_ids: timetablesSequence
+                });
+
+                const capacityResponse = await fetch(`http://localhost:8080/api/v1/get_min_capacity`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: requestBody
+                });
+                if (!capacityResponse.ok) {
+                    throw new Error(`HTTP error! status: ${capacityResponse.status}`);
+                }
+                const data = await capacityResponse.text();
+                const min_capacity = parseInt(data, 10);
+
+                capacityText =  `<p><strong>Вместимость:</strong> ${min_capacity}</p>`;
+                 details.innerHTML = `
+                    <p><strong>Время отъезда:</strong> ${schedule.departure_time}</p>
+                    <p><strong>Время прибытия:</strong> ${schedule.arrival_time}</p>
+                     ${capacityText}
+                `;
+            } catch (error) {
+                console.error("Ошибка при получении количества мест:", error);
+                alert("Ошибка при получении количества мест.");
+            }
+        });
+
+        item.appendChild(reserveBtn);
+        schedulesContainer.appendChild(item);
+    }
+}
+
+
+// Функция отправки запроса бронирования или отмены бронирования
+async function reserveRoute(timetablesSequence, action, button) {
+    const requestBody = JSON.stringify({
+        token: token,
+        timetables_ids: timetablesSequence
+    });
+
+    try {
+        const url = `http://localhost:8080/api/v1/${action}`; // Используем action в URL
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: requestBody
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data === true) {
+            // Обновляем текст и статус кнопки в зависимости от действия
+            if (action === "reserve") {
+                button.textContent = "Отменить бронь";
+                button.dataset.isReserved = "true";
+                alert("Бронирование прошло успешно!");
+            } else if (action === "cancel") {
+                button.textContent = "Забронировать";
+                button.dataset.isReserved = "false";
+                alert("Бронирование отменено!");
+            }
+        } else {
+            alert("Не удалось изменить бронирование.");
+        }
+    } catch (error) {
+        console.error("Ошибка при бронировании:", error);
+        alert("Ошибка при бронировании.");
+    }
+}
+
+</script>
+</body>
+</html>
